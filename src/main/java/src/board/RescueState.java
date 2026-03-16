@@ -68,12 +68,96 @@ public class RescueState {
         return rutas.get(h);
     }
 
+    public double getCosteRuta(int h){
+
+        double costeRuta = 0;
+
+        ArrayList<Integer> ruta = rutas.get(h);
+        if(ruta.isEmpty()) return 0;
+
+        int helicPorCentro = centros.getFirst().getNHelicopteros();
+        int centroId = h / helicPorCentro;
+
+        Centro centro = centros.get(centroId);
+
+        int personasActual = 0;
+        int gruposSalida = 0;
+
+        int xActual = centro.getCoordX();
+        int yActual = centro.getCoordY();
+
+        for(int g : ruta){
+
+            Grupo grupo = grupos.get(g);
+            int personasGrupo = grupo.getNPersonas();
+
+            // si supera capacidad o grupos máximos -> cerrar salida
+            if(personasActual + personasGrupo > 15 || gruposSalida == 3){
+
+                costeRuta += distancia(xActual,yActual,
+                        centro.getCoordX(),centro.getCoordY()) / 100.0 * 60.0;
+
+                costeRuta += 10; // tiempo preparación
+
+                personasActual = 0;
+                gruposSalida = 0;
+
+                xActual = centro.getCoordX();
+                yActual = centro.getCoordY();
+            }
+
+            // volar al grupo
+            double dist = distancia(xActual,yActual,
+                    grupo.getCoordX(),grupo.getCoordY());
+
+            costeRuta += dist / 100.0 * 60.0;
+
+            // tiempo recoger personas
+            int recogida = grupo.getNPersonas();
+            if(grupo.getPrioridad() == 1) recogida *= 2;
+
+            costeRuta += recogida;
+
+            personasActual += personasGrupo;
+            gruposSalida++;
+
+            xActual = grupo.getCoordX();
+            yActual = grupo.getCoordY();
+        }
+
+        // volver al centro al final
+        costeRuta += distancia(xActual,yActual,
+                centro.getCoordX(),centro.getCoordY()) / 100.0 * 60.0;
+
+        return costeRuta;
+    }
+
     public int numGrupos(){
         return grupos.size();
     }
 
     public int numRutas(){
         return rutas.size();
+    }
+
+    public void setGrupoHeli(int g, int heli) {
+        grupoHeli[g] = heli;
+    }
+
+    public void insertarGrupo(int heli, int pos, int grupo){
+
+        /*  check
+        int heliActual = grupoHeli[grupo];
+        if(heliActual != -1){
+            rutas.get(heliActual).remove(Integer.valueOf(grupo));
+        }*/
+
+        rutas.get(heli).add(pos, grupo);
+        grupoHeli[grupo] = heli;
+    }
+
+    private double distancia(int x1,int y1,int x2,int y2){
+        return Math.sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
     }
 
 }
