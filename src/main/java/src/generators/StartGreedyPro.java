@@ -4,6 +4,9 @@ import IA.Desastres.*;
 import java.util.*;
 import src.board.RescueState;
 
+/** GreedyPro
+ * Criterio: elegir el helicoptero con menor incremento
+ */
 public class StartGreedyPro {
     public static RescueState generateGreedyProInitialState(Grupos grupos, Centros centros){
 

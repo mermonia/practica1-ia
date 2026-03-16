@@ -4,7 +4,9 @@ import IA.Desastres.*;
 import src.board.RescueState;
 
 import java.util.*;
-
+/** Greedy
+ * Criterio: elegir el helicoptero con menor distancia
+ */
 public class StartGreedy {
     public static RescueState generateGreedyInitialState(Grupos grupos, Centros centros){
 
