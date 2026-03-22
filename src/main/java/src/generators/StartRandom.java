@@ -14,9 +14,11 @@ public class StartRandom {
 
         for(int i = 0; i < g.size(); i++){
 
-            int heli = rnd.nextInt(c.size());
+            int numHelis = c.size() * c.getFirst().getNHelicopteros();
+            int heli = rnd.nextInt(numHelis);
 
             e.getRutaHelicoptero(heli).add(i);
+            e.setGrupoHeli(i, heli);
         }
 
         return e;
