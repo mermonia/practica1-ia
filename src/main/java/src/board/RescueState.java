@@ -20,9 +20,10 @@ public class RescueState {
         centros = c;
 
         int numGrupos = g.size();
-        int numHelis = c.size();
+        int numHelis = c.size()*c.getFirst().getNHelicopteros();
 
         grupoHeli = new int[numGrupos];
+        Arrays.fill(grupoHeli, -1);
 
         rutas = new ArrayList<>();
 
@@ -48,6 +49,8 @@ public class RescueState {
         }
     }
 
+    // ==================== Getters ====================
+
     public Grupos getGrupos() {
         return grupos;
     }
@@ -66,6 +69,17 @@ public class RescueState {
 
     public ArrayList<Integer> getRutaHelicoptero(int h){
         return rutas.get(h);
+    }
+
+    public int numRutas(){
+        return rutas.size();
+    }
+    public int numGrupos(){
+        return grupos.size();
+    }
+
+    public int getHelicopteroCentro(int h) {
+        return (int) (h / rutas.size());
     }
 
     public double getCosteRuta(int h){
@@ -132,13 +146,75 @@ public class RescueState {
         return costeRuta;
     }
 
-    public int numGrupos(){
-        return grupos.size();
+    public double getCosteTotal() {
+        double total = 0;
+        for (int h = 0; h < rutas.size(); h++) {
+            total += getCosteRuta(h);
+        }
+        return total;
     }
 
-    public int numRutas(){
-        return rutas.size();
+    public double getMaxTiempoP1() {
+        double maxTiempoP1 = 0;
+
+        for (int h = 0; h < rutas.size(); h++) {
+            ArrayList<Integer> ruta = rutas.get(h);
+            if (ruta.isEmpty()) continue;
+
+            int centroId = getHelicopteroCentro(h);
+            Centro centro = centros.get(centroId);
+
+            double tiempoAcum = 0;
+            int personasActual = 0;
+            int gruposSalida = 0;
+
+            int xActual = centro.getCoordX();
+            int yActual = centro.getCoordY();
+
+            for (int g : ruta) {
+                Grupo grupo = grupos.get(g);
+                int personasGrupo = grupo.getNPersonas();
+
+                if (personasActual + personasGrupo > 15 || gruposSalida == 3) {
+                    tiempoAcum += distancia(xActual, yActual,
+                            centro.getCoordX(), centro.getCoordY()) / 100.0 * 60.0;
+                    tiempoAcum += 10;
+
+                    personasActual = 0;
+                    gruposSalida = 0;
+                    xActual = centro.getCoordX();
+                    yActual = centro.getCoordY();
+                }
+
+                tiempoAcum += distancia(xActual, yActual,
+                        grupo.getCoordX(), grupo.getCoordY()) / 100.0 * 60.0;
+
+                int recogida = grupo.getNPersonas();
+                if (grupo.getPrioridad() == 1) recogida *= 2;
+                tiempoAcum += recogida;
+
+                personasActual += personasGrupo;
+                gruposSalida++;
+
+                xActual = grupo.getCoordX();
+                yActual = grupo.getCoordY();
+
+                // Si este grupo es prioridad 1, el tiempo de vuelta al centro
+                // sería cuando queda rescatado
+                if (grupo.getPrioridad() == 1) {
+                    double tiempoVuelta = tiempoAcum +
+                            distancia(xActual, yActual,
+                                    centro.getCoordX(), centro.getCoordY()) / 100.0 * 60.0;
+                    if (tiempoVuelta > maxTiempoP1) {
+                        maxTiempoP1 = tiempoVuelta;
+                    }
+                }
+            }
+        }
+        return maxTiempoP1;
     }
+
+    // ==================== Modificadores ====================
 
     public void setGrupoHeli(int g, int heli) {
         grupoHeli[g] = heli;
@@ -154,6 +230,14 @@ public class RescueState {
 
         rutas.get(heli).add(pos, grupo);
         grupoHeli[grupo] = heli;
+    }
+
+    public void removeGrupo(int grupo) {
+        int heli = grupoHeli[grupo];
+        if (heli >= 0) {
+            rutas.get(heli).remove(Integer.valueOf(grupo));
+            grupoHeli[grupo] = -1;
+        }
     }
 
     private double distancia(int x1,int y1,int x2,int y2){
