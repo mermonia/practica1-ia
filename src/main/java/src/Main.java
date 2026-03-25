@@ -19,7 +19,18 @@ public class Main {
     // SEEDS fixes per a reproduïbilitat (iguals per a tots els experiments)
     // ================================================================
     static final int[] SEEDS = {11, 22, 33, 44, 55, 66, 77, 88, 99, 110};
-
+    static final int[] SEEDS2 = {
+            523, 87, 999, 341, 712, 65, 488, 230, 901, 144,
+            378, 654, 29, 810, 472, 193, 556, 721, 88, 402,
+            615, 777, 5, 268, 349, 920, 431, 602, 118, 745,
+            864, 52, 390, 281, 973, 167, 459, 630, 204, 851,
+            76, 538, 692, 314, 947, 183, 420, 559, 601, 732,
+            11, 298, 467, 825, 940, 156, 377, 688, 249, 563,
+            704, 92, 815, 333, 478, 690, 27, 954, 382, 611,
+            743, 159, 888, 266, 531, 679, 803, 47, 995, 214,
+            362, 580, 721, 134, 846, 271, 498, 617, 39, 902,
+            455, 768, 120, 593, 834, 206, 319, 650, 77, 982
+    };
     // ================================================================
     // Paràmetres SA — actualitza'ls després de l'experiment 3
     // ================================================================
@@ -38,6 +49,7 @@ public class Main {
         int exp = args.length > 0 ? Integer.parseInt(args[0]) : 0;
         switch (exp) {
             case 1  -> experiment1_operadors();
+            case 12 -> experiment1_2_operadors();
             case 2  -> experiment2_inicialitzacio();
             case 3  -> experiment3_SA_params();
             case 4  -> experiment4_escalabilitat_proporcional();
@@ -58,32 +70,99 @@ public class Main {
     }
 
     // ================================================================
-    // EXPERIMENT 1 — Quins operadors donen millors resultats?
-    // Escenari: 5 centres, 1 heli/centre, 100 grups | HC | H1
-    // Compara DesastresSuccessorFunction vs DesastresSuccessorFunctionSA
+    // EXPERIMENT 1.2 — Quins operadors donen millors resultats?
+    // Escenari: [5,10] centres, [1,2,3] heli/centre, 100 grups | HC | H1
+    // Compara les 7 combinacions possibles d'operadors
     // ================================================================
+    static void experiment1_2_operadors() throws Exception {
+        System.out.println("=== EXPERIMENT 1: Operadors ===");
+
+        // CSV amb tots els camps necessaris
+        String csv = "exp,operador,num_centres,heli_per_centre,seed,h_ini,h_fin,temps_ms,nodes\n";
+
+        String[] noms = {
+                "SwapGroups",
+                "SwapGroups+SwapOrder",
+                "SwapGroups+MoveGroup+SwapOrder"
+        };
+
+        SuccessorFunction[] ops = {
+                new SwapGroupsSuccessorFunction(),
+                new SwapGroupsSwapOrderSuccessorFunction(),
+                new DesastresSuccessorFunction()
+        };
+
+        int[] centresVals = {5, 10};
+
+        for (int centres : centresVals) {
+            for (int nH = 1; nH <= 3; nH++) {
+                for (int oi = 0; oi < noms.length; oi++) {
+                    for (int seed : SEEDS) {
+
+                        // Crear dades del problema
+                        Grupos g = new Grupos(100, seed);
+                        Centros c = new Centros(centres, nH, seed);
+
+                        // Estat inicial
+                        RescueState ini = generaInicial("Random", g, c);
+                        double hIni = new HeuristicTotalTime().getHeuristicValue(ini);
+
+                        // Executar Hill Climbing
+                        double[] res = runHC(ini, ops[oi], new HeuristicTotalTime());
+
+                        // Guardar al CSV
+                        csv += String.format("1,%s,%d,%d,%d,%.4f,%.4f,%.0f,%.0f\n",
+                                noms[oi], centres, nH, seed, hIni, res[0], res[1], res[2]);
+
+                        // Output per consola
+                        System.out.printf(
+                                "  [%s] centres=%d heli=%d seed=%d | Hini=%.2f -> Hfin=%.2f | t=%.0fms | nodes=%.0f\n",
+                                noms[oi], centres, nH, seed, hIni, res[0], res[1], res[2]
+                        );
+                    }
+                }
+            }
+        }
+
+        // Guardar fitxer CSV
+        saveCSV("exp1_2_operadors.csv", csv);
+    }
+
     static void experiment1_operadors() throws Exception {
         System.out.println("=== EXPERIMENT 1: Operadors ===");
         String csv = "exp,operadors,seed,h_inicial,h_final,temps_ms,nodes\n";
 
-        String[] noms = {"OpHC", "OpSA"};
+        String[] noms = {
+                "SwapGroups",
+                "MoveGroup",
+                "SwapOrder",
+                "SwapGroups+MoveGroup",
+                "SwapGroups+SwapOrder",
+                "MoveGroup+SwapOrder",
+                "SwapGroups+MoveGroup+SwapOrder"
+        };
         SuccessorFunction[] ops = {
-                new DesastresSuccessorFunction(),
-                new DesastresSuccessorFunctionSA()
+                new SwapGroupsSuccessorFunction(),
+                new MoveGroupSuccessorFunction(),
+                new SwapOrderSuccessorFunction(),
+                new SwapGroupsMoveGroupSuccessorFunction(),
+                new SwapGroupsSwapOrderSuccessorFunction(),
+                new MoveGroupSwapOrderSuccessorFunction(),
+                new DesastresSuccessorFunction()
         };
 
         for (int oi = 0; oi < noms.length; oi++) {
             for (int seed : SEEDS) {
                 Grupos  g = new Grupos(100, seed);
-                Centros c = new Centros(5, 1, seed);
-                RescueState ini = generaInicial("GreedyPro", g, c);
+                Centros c = new Centros(5, 2, seed);
+                RescueState ini = generaInicial("Random", g, c);
                 double hIni = new HeuristicTotalTime().getHeuristicValue(ini);
 
                 double[] res = runHC(ini, ops[oi], new HeuristicTotalTime());
                 csv += String.format("1,%s,%d,%.4f,%.4f,%.0f,%.0f\n",
                         noms[oi], seed, hIni, res[0], res[1], res[2]);
-                System.out.printf("  [%s] seed=%d  Hini=%.2f  Hfin=%.2f  t=%dms\n",
-                        noms[oi], seed, hIni, res[0], (long)res[1]);
+                System.out.printf("  [%s] seed=%d  Hini=%.2f  Hfin=%.2f  t=%.0fms  nodes=%.0f\n",
+                        noms[oi], seed, hIni, res[0], res[1], res[2]);
             }
         }
         saveCSV("exp1_operadors.csv", csv);
@@ -114,7 +193,7 @@ public class Main {
                 }
                 double hIni = new HeuristicTotalTime().getHeuristicValue(ini);
 
-                double[] res = runHC(ini, new DesastresSuccessorFunction(), new HeuristicTotalTime());
+                double[] res = runHC(ini, new SwapGroupsSwapOrderSuccessorFunction(), new HeuristicTotalTime());
                 csv += String.format("2,%s,%d,%.4f,%.4f,%.0f,%.0f\n",
                         est, seed, hIni, res[0], res[1], res[2]);
                 System.out.printf("  [%s] seed=%d  Hini=%.2f  Hfin=%.2f  t=%dms\n",
@@ -130,34 +209,40 @@ public class Main {
     // ================================================================
     static void experiment3_SA_params() throws Exception {
         System.out.println("=== EXPERIMENT 3: Paràmetres SA ===");
-        String csv = "exp,k,lambda,steps,stiter,seed,h_final,temps_ms\n";
+        String csv = "exp,k,lambda,steps,stiter,seed,h_inicial,h_final,temps_ms\n";
 
-        int[] ks = {1, 10, 100, 1000};
-        double[] lambdas = {1.0, 0.01, 0.001, 0.0001};
-        int[]    stepArr = {5000, 20000, 100000};
-        int      stiter  = 100;
+        //int[] ks = {10,30,50,70,90,100,500,1000};
+        int[] ks = {10};
+        //double[] lambdas = {0.01, 0.001,0.0008,0.0005, 0.0001};
+        double[] lambdas = {0.001};
+        //int[]    stepArr = {5000,10000, 20000,50000,75000, 100000,150000,200000};
+        int[]    stepArr = {150000};
+        int[]      stiter  = {10,100,500,1000,5000,10000,50000};
 
         for (int k : ks) {
             for (double lam : lambdas) {
                 for (int st : stepArr) {
-                    // 5 rèpliques per la graella (amplia a 10 per als millors valors)
-                    for (int i = 0; i < 5; i++) {
-                        int seed = SEEDS[i];
-                        Grupos  g = new Grupos(100, seed);
-                        Centros c = new Centros(5, 1, seed);
-                        RescueState ini = generaInicial("GreedyPro", g, c);
+                    for (int stit : stiter) {
+                        // 5 rèpliques per la graella (amplia a 10 per als millors valors)
+                        for (int i = 0; i < 100; i++) {
+                            int seed = SEEDS2[i];
+                            Grupos g = new Grupos(100, seed);
+                            Centros c = new Centros(5, 1, seed);
+                            RescueState ini = generaInicial("GreedyPro", g, c);
+                            double hIni = new HeuristicTotalTime().getHeuristicValue(ini);
 
-                        double[] res = runSA(ini, new DesastresSuccessorFunctionSA(),
-                                new HeuristicTotalTime(), st, stiter, k, lam);
-                        csv += String.format(java.util.Locale.US, "3,%d,%.6f,%d,%d,%d,%.4f,%.0f\n",
-                                k, lam, st, stiter, seed, res[0], res[1]);
-                        System.out.printf("  k=%d λ=%.5f steps=%d seed=%d → H=%.2f t=%dms\n",
-                                k, lam, st, seed, res[0], (long)res[1]);
+                            double[] res = runSA(ini, new DesastresSuccessorFunctionSA(),
+                                    new HeuristicTotalTime(), st, stit, k, lam);
+                            csv += String.format("3,%d,%.6f,%d,%d,%d,%.0f,%.0f,%.0f\n",
+                                    k, lam, st, stit, seed, hIni, res[0], res[1]);
+                            System.out.printf("  k=%d λ=%.5f  steps=%d stiter=%d seed=%d Hini=%.0f H=%.0f t=%dms\n",
+                                    k, lam, st, stit, seed, hIni, res[0], (long) res[1]);
+                        }
                     }
                 }
             }
         }
-        saveCSV("exp3_SA_params.csv", csv);
+        saveCSV("exp3_3_SA_params.csv", csv);
     }
 
     // ================================================================
@@ -178,7 +263,7 @@ public class Main {
 
                 // HC
                 RescueState iniHC = generaInicial("GreedyPro", g, c);
-                double[] hc = runHC(iniHC, new DesastresSuccessorFunction(), new HeuristicTotalTime());
+                double[] hc = runHC(iniHC, new SwapGroupsSwapOrderSuccessorFunction(), new HeuristicTotalTime());
                 csv += String.format("4,HC,%d,%d,%d,%.4f,%.0f\n", nc, ng, seed, hc[0], hc[1]);
                 System.out.printf("  HC  nc=%d ng=%d seed=%d → H=%.2f t=%dms\n",
                         nc, ng, seed, hc[0], (long)hc[1]);
@@ -212,7 +297,7 @@ public class Main {
                 Grupos  g = new Grupos(ng, seed);
                 Centros c = new Centros(5, 1, seed);
                 RescueState ini = generaInicial("GreedyPro", g, c);
-                double[] res = runHC(ini, new DesastresSuccessorFunction(), new HeuristicTotalTime());
+                double[] res = runHC(ini, new SwapGroupsSwapOrderSuccessorFunction(), new HeuristicTotalTime());
                 csv += String.format(java.util.Locale.US, "5a,grups,5,%d,%d,%.4f,%.0f\n", ng, seed, res[0], res[1]);
                 System.out.printf("  5a ng=%d seed=%d → H=%.2f t=%dms\n", ng, seed, res[0], (long)res[1]);
             }
@@ -225,7 +310,7 @@ public class Main {
                 Grupos  g = new Grupos(100, seed);
                 Centros c = new Centros(nc, 1, seed);
                 RescueState ini = generaInicial("GreedyPro", g, c);
-                double[] res = runHC(ini, new DesastresSuccessorFunction(), new HeuristicTotalTime());
+                double[] res = runHC(ini, new SwapGroupsSwapOrderSuccessorFunction(), new HeuristicTotalTime());
                 csv += String.format(java.util.Locale.US,"5b,centres,%d,100,%d,%.4f,%.0f\n", nc, seed, res[0], res[1]);
                 System.out.printf("  5b nc=%d seed=%d → H=%.2f t=%dms\n", nc, seed, res[0], (long)res[1]);
             }
@@ -248,7 +333,7 @@ public class Main {
                 Grupos  g = new Grupos(100, seed);
                 Centros c = new Centros(5, nh, seed);
                 RescueState ini = generaInicial("GreedyPro", g, c);
-                double[] res = runHC(ini, new DesastresSuccessorFunction(), new HeuristicTotalTime());
+                double[] res = runHC(ini, new SwapGroupsSwapOrderSuccessorFunction(), new HeuristicTotalTime());
                 csv += String.format(java.util.Locale.US,"6,%d,%d,%.4f,%.0f\n", nh, seed, res[0], res[1]);
                 System.out.printf("  helis=%d seed=%d → H=%.2f t=%dms\n", nh, seed, res[0], (long)res[1]);
             }
@@ -276,7 +361,7 @@ public class Main {
 
                 // ---- HC ----
                 RescueState iniHC = generaInicial("GreedyPro", g, c);
-                double[] hc = runHC(iniHC, new DesastresSuccessorFunction(), hComb);
+                double[] hc = runHC(iniHC, new SwapGroupsSwapOrderSuccessorFunction(), hComb);
                 double h1hc = new HeuristicTotalTime().getHeuristicValue(lastState);
                 double h2hc = new HeuristicPriority().getHeuristicValue(lastState);
                 csv += String.format(java.util.Locale.US,"7,HC,%.0f,%d,%.4f,%.4f,%.4f,%.0f\n",
