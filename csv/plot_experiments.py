@@ -1,461 +1,650 @@
 """
-plot_experiments.py
-====================
-Genera els gràfics de tots els experiments de la pràctica.
+plot_experiments.py  —  versió corregida i millorada
+=====================================================
+Genera gràfics d'estil acadèmic per a tots els experiments.
+
+FORMATS CSV detectats i corregits:
+  exp1_operadors.csv        : decimals amb coma (h_inicial, h_final cadascun = 2 tokens)
+  exp1_2_operadors.csv      : decimals amb coma (h_ini, h_fin cadascun = 2 tokens)
+  exp2_inicial.csv          : decimals amb coma (h_inicial, h_final cadascun = 2 tokens)
+  exp3_1_SA_params.csv      : format no estàndard "steps  h_ini -> h_final"
+  exp3_2_SA_params.csv      : lambda amb coma decimal (= 2 tokens)
+  exp3_3_SA_params.csv      : lambda amb coma decimal, stiter varia
+  exp4_*.csv                : h_final amb coma decimal (= 2 tokens)
+  exp5_*.csv                : h_final ja amb punt decimal (normal)
+  exp6_*.csv                : h_final ja amb punt decimal (normal)
+  exp7_*.csv                : totes les columnes numèriques amb punt decimal (normal)
 
 Ús:
     python plot_experiments.py               # tots els experiments
-    python plot_experiments.py 1 3 5         # experiments concrets
+    python plot_experiments.py 1 2 3 4 5 6 7
 
-Els CSVs s'han de trobar al mateix directori que aquest script,
-o bé ajusta la variable CSV_DIR al principi del fitxer.
-
-Dependències:  pip install pandas matplotlib seaborn
+Dependències: pip install pandas matplotlib seaborn scipy
 """
 
-import sys
-import os
-import warnings
+import sys, os, re, warnings
 warnings.filterwarnings("ignore")
 
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import matplotlib.patches as mpatches
 import seaborn as sns
 import numpy as np
+from scipy import stats as sp_stats
 
-# ── Configuració ─────────────────────────────────────────────────────────────
-CSV_DIR    = "."          # directori on estan els CSVs
-OUTPUT_DIR = "plots"      # directori on es desaran els PNGs
-DPI        = 150
+# ── Configuració ──────────────────────────────────────────────────────────────
+CSV_DIR    = "."
+OUTPUT_DIR = "plots"
+DPI        = 180
 
-# Paleta coherent entre experiments
-PALETTE = ["#534AB7","#1D9E75","#D85A30","#378ADD","#D4537E","#639922","#BA7517"]
+COLORS = {
+    "red":    "#C0392B",
+    "blue":   "#2471A3",
+    "green":  "#1E8449",
+    "purple": "#6C3483",
+    "orange": "#CA6F1E",
+    "teal":   "#148F77",
+    "gray":   "#717D7E",
+}
+PALETTE = list(COLORS.values())
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+SHORT_OP = {
+    "SwapGroups":                     "SG",
+    "MoveGroup":                      "MG",
+    "SwapOrder":                      "SO",
+    "SwapGroups+MoveGroup":           "SG+MG",
+    "SwapGroups+SwapOrder":           "SG+SO",
+    "MoveGroup+SwapOrder":            "MG+SO",
+    "SwapGroups+MoveGroup+SwapOrder": "SG+MG+SO",
+}
 
-def read_csv(filename):
-    """Llegeix un CSV amb decimal de coma o punt."""
+
+# ── Estil global ──────────────────────────────────────────────────────────────
+plt.rcParams.update({
+    "font.family":        "DejaVu Sans",
+    "font.size":          10,
+    "axes.titlesize":     11,
+    "axes.titleweight":   "bold",
+    "axes.labelsize":     10,
+    "xtick.labelsize":    9,
+    "ytick.labelsize":    9,
+    "legend.fontsize":    9,
+    "figure.titlesize":   13,
+    "figure.titleweight": "bold",
+    "figure.facecolor":   "white",
+    "axes.facecolor":     "white",
+    "axes.edgecolor":     "#AAAAAA",
+    "axes.linewidth":     0.8,
+    "axes.grid":          True,
+    "grid.color":         "#E8E8E8",
+    "grid.linewidth":     0.6,
+    "lines.linewidth":    1.8,
+    "lines.markersize":   6,
+})
+
+
+# ── Parsers específics per cada CSV ───────────────────────────────────────────
+
+def read_exp1(filename="exp1_operadors.csv"):
     path = os.path.join(CSV_DIR, filename)
     if not os.path.exists(path):
-        print(f"  [!] No trobat: {path}  →  saltant")
-        return None
-    df = pd.read_csv(path, sep=",")
-    # Convertir columnes numèriques que tinguin coma decimal
-    for col in df.columns:
-        if df[col].dtype == object:
-            try:
-                df[col] = df[col].str.replace(",", ".").astype(float)
-            except (ValueError, AttributeError):
-                pass
-    return df
+        print(f"  [!] No trobat: {path}"); return None
+    rows = []
+    with open(path) as f:
+        next(f)
+        for line in f:
+            t = line.strip().split(',')
+            if len(t) < 9: continue
+            rows.append({
+                "operadors": t[1],
+                "seed":      int(t[2]),
+                "h_inicial": float(f"{t[3]}.{t[4]}"),
+                "h_final":   float(f"{t[5]}.{t[6]}"),
+                "temps_ms":  float(t[7]),
+                "nodes":     int(t[8]),
+            })
+    return pd.DataFrame(rows)
 
+
+def read_exp1_2(filename="exp1_2_operadors.csv"):
+    path = os.path.join(CSV_DIR, filename)
+    if not os.path.exists(path):
+        print(f"  [!] No trobat: {path}"); return None
+    rows = []
+    with open(path) as f:
+        next(f)
+        for line in f:
+            t = line.strip().split(',')
+            if len(t) < 11: continue
+            rows.append({
+                "operador":        t[1],
+                "num_centres":     int(t[2]),
+                "heli_per_centre": int(t[3]),
+                "seed":            int(t[4]),
+                "h_ini":           float(f"{t[5]}.{t[6]}"),
+                "h_fin":           float(f"{t[7]}.{t[8]}"),
+                "temps_ms":        float(t[9]),
+                "nodes":           int(t[10]),
+            })
+    return pd.DataFrame(rows)
+
+
+def read_exp2(filename="exp2_inicial.csv"):
+    path = os.path.join(CSV_DIR, filename)
+    if not os.path.exists(path):
+        print(f"  [!] No trobat: {path}"); return None
+    rows = []
+    with open(path) as f:
+        next(f)
+        for line in f:
+            t = line.strip().split(',')
+            if len(t) < 9: continue
+            rows.append({
+                "estrategia": t[1],
+                "seed":       int(t[2]),
+                "h_inicial":  float(f"{t[3]}.{t[4]}"),
+                "h_final":    float(f"{t[5]}.{t[6]}"),
+                "temps_ms":   float(t[7]),
+                "nodes":      int(t[8]),
+            })
+    return pd.DataFrame(rows)
+
+
+def read_exp3_1(filename="exp3_1_SA_params.csv"):
+    path = os.path.join(CSV_DIR, filename)
+    if not os.path.exists(path):
+        print(f"  [!] No trobat: {path}"); return None
+    rows = []
+    with open(path) as f:
+        next(f)
+        for line in f:
+            m = re.match(r'\s*(\d+)\s+(\d+)\s*->\s*(\d+)', line)
+            if m:
+                rows.append({
+                    "steps":     int(m.group(1)),
+                    "h_inicial": int(m.group(2)),
+                    "h_final":   int(m.group(3)),
+                })
+    return pd.DataFrame(rows)
+
+
+def read_exp3_2(filename="exp3_2_SA_params.csv"):
+    path = os.path.join(CSV_DIR, filename)
+    if not os.path.exists(path):
+        print(f"  [!] No trobat: {path}"); return None
+    rows = []
+    with open(path) as f:
+        next(f)
+        for line in f:
+            t = line.strip().split(',')
+            if len(t) < 10: continue
+            rows.append({
+                "k":         int(t[1]),
+                "lam":       float(f"{t[2]}.{t[3]}"),
+                "steps":     int(t[4]),
+                "stiter":    int(t[5]),
+                "seed":      int(t[6]),
+                "h_inicial": float(t[7]),
+                "h_final":   float(t[8]),
+                "temps_ms":  float(t[9]),
+            })
+    return pd.DataFrame(rows)
+
+
+def read_exp3_3(filename="exp3_3_SA_params.csv"):
+    return read_exp3_2(filename)
+
+
+def read_exp4(filename="exp4_escalabilitat_proporcional.csv"):
+    path = os.path.join(CSV_DIR, filename)
+    if not os.path.exists(path):
+        print(f"  [!] No trobat: {path}"); return None
+    rows = []
+    with open(path) as f:
+        next(f)
+        for line in f:
+            t = line.strip().split(',')
+            if len(t) < 8: continue
+            rows.append({
+                "algoritme": t[1],
+                "n_centres": int(t[2]),
+                "n_grups":   int(t[3]),
+                "seed":      int(t[4]),
+                "h_final":   float(f"{t[5]}.{t[6]}"),
+                "temps_ms":  float(t[7]),
+            })
+    return pd.DataFrame(rows)
+
+
+def read_exp5(filename="exp5_escalabilitat_separada.csv"):
+    path = os.path.join(CSV_DIR, filename)
+    if not os.path.exists(path):
+        print(f"  [!] No trobat: {path}"); return None
+    return pd.read_csv(path)
+
+
+def read_exp6(filename="exp6_helicopters.csv"):
+    path = os.path.join(CSV_DIR, filename)
+    if not os.path.exists(path):
+        print(f"  [!] No trobat: {path}"); return None
+    return pd.read_csv(path)
+
+
+def read_exp7(filename="exp7_heuristica2.csv"):
+    path = os.path.join(CSV_DIR, filename)
+    if not os.path.exists(path):
+        print(f"  [!] No trobat: {path}"); return None
+    return pd.read_csv(path)
+
+
+# ── Helpers de visualització ─────────────────────────────────────────────────
 
 def savefig(fig, name):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     path = os.path.join(OUTPUT_DIR, name)
-    fig.savefig(path, dpi=DPI, bbox_inches="tight")
+    fig.savefig(path, dpi=DPI, bbox_inches="tight", facecolor="white")
     plt.close(fig)
-    print(f"  → {path}")
+    print(f"  -> {path}")
 
 
-def bar_with_err(ax, x_labels, means, stds, colors, ylabel, title, y_min=None):
-    """Barres amb barra d'error de desviació estàndard."""
-    x = np.arange(len(x_labels))
-    bars = ax.bar(x, means, color=colors[:len(x_labels)],
-                  yerr=stds, capsize=4, error_kw={"elinewidth": 1, "ecolor": "#555"})
-    ax.set_xticks(x)
-    ax.set_xticklabels(x_labels, rotation=25, ha="right", fontsize=9)
-    ax.set_ylabel(ylabel)
-    ax.set_title(title)
-    if y_min is not None:
-        ax.set_ylim(bottom=y_min)
-    return bars
+def style_ax(ax, xlabel=None, ylabel=None, title=None, ymin=None, ymax=None):
+    if title:  ax.set_title(title, pad=6)
+    if xlabel: ax.set_xlabel(xlabel, labelpad=4)
+    if ylabel: ax.set_ylabel(ylabel, labelpad=4)
+    if ymin is not None or ymax is not None:
+        ax.set_ylim(bottom=ymin, top=ymax)
+    ax.tick_params(axis="both", length=3, width=0.7)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_color("#AAAAAA")
+    ax.spines["bottom"].set_color("#AAAAAA")
+
+
+def boxplot_group(ax, data_dict, colors, title="", ylabel="", xlabel="",
+                  ymin=None, rotate_labels=0):
+    labels = list(data_dict.keys())
+    data   = [np.array(v, dtype=float) for v in data_dict.values()]
+    bp = ax.boxplot(
+        data, patch_artist=True, notch=False, widths=0.5,
+        medianprops=dict(color="white", linewidth=2.5),
+        whiskerprops=dict(linewidth=1.0, linestyle="--", color="#555"),
+        capprops=dict(linewidth=1.2, color="#555"),
+        flierprops=dict(marker="o", markersize=3.5, markerfacecolor="#999",
+                        markeredgewidth=0.4, markeredgecolor="#777", alpha=0.7),
+    )
+    for patch, col in zip(bp["boxes"], colors):
+        patch.set_facecolor(col); patch.set_alpha(0.88)
+        patch.set_linewidth(1.2); patch.set_edgecolor("#333")
+    ax.set_xticks(range(1, len(labels) + 1))
+    ax.set_xticklabels(labels, rotation=rotate_labels,
+                       ha="right" if rotate_labels > 0 else "center", fontsize=9)
+    style_ax(ax, xlabel=xlabel, ylabel=ylabel, title=title, ymin=ymin)
+
+
+def errorline(ax, xs, means, stds, color, label, marker="o"):
+    ax.plot(xs, means, marker=marker, color=color, label=label,
+            linewidth=1.8, markersize=6, zorder=3)
+    ax.fill_between(xs, np.array(means) - np.array(stds),
+                    np.array(means) + np.array(stds),
+                    color=color, alpha=0.13, zorder=2)
+
+
+def add_significance(ax, x1, x2, vals1, vals2):
+    _, p = sp_stats.ttest_ind(vals1, vals2)
+    y_top = max(np.percentile(vals1, 95), np.percentile(vals2, 95))
+    yrange = ax.get_ylim()[1] - ax.get_ylim()[0]
+    h = 0.04 * yrange
+    ax.plot([x1, x1, x2, x2], [y_top, y_top + h, y_top + h, y_top], lw=1.0, color="#444")
+    stars = "***" if p < 0.001 else ("**" if p < 0.01 else ("*" if p < 0.05 else "ns"))
+    ax.text((x1 + x2) / 2, y_top + h * 1.1, stars,
+            ha="center", va="bottom", fontsize=9, color="#333")
+
+
+def hex_from_rgb(col):
+    return f"#{int(col[0]*255):02x}{int(col[1]*255):02x}{int(col[2]*255):02x}"
 
 
 # ── Experiment 1 ──────────────────────────────────────────────────────────────
 
 def plot_exp1(df):
-    """7 operadors: h_final, reducció %, temps."""
     print("  Exp 1: operadors")
+    order   = ["SwapGroups","MoveGroup","SwapOrder","SwapGroups+MoveGroup",
+                "SwapGroups+SwapOrder","MoveGroup+SwapOrder","SwapGroups+MoveGroup+SwapOrder"]
+    present = [o for o in order if o in df["operadors"].unique()]
+    labels  = [SHORT_OP.get(o, o) for o in present]
+    colors  = PALETTE[:len(present)]
+    df = df.copy()
+    df["red_pct"] = (df["h_inicial"] - df["h_final"]) / df["h_inicial"] * 100
 
-    order = ["SwapGroups","MoveGroup","SwapOrder",
-             "SwapGroups+MoveGroup","SwapGroups+SwapOrder",
-             "MoveGroup+SwapOrder","SwapGroups+MoveGroup+SwapOrder"]
-    short = {"SwapGroups":"SG","MoveGroup":"MG","SwapOrder":"SO",
-             "SwapGroups+MoveGroup":"SG+MG","SwapGroups+SwapOrder":"SG+SO",
-             "MoveGroup+SwapOrder":"MG+SO","SwapGroups+MoveGroup+SwapOrder":"SG+MG+SO"}
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig.suptitle("Experiment 1 — Comparació d'operadors (Hill Climbing)")
+    fig.subplots_adjust(top=0.88, wspace=0.38)
 
-    col_fin = "h_final" if "h_final" in df.columns else df.columns[4]
-    col_ini = "h_inicial" if "h_inicial" in df.columns else df.columns[3]
-    col_t   = "temps_ms" if "temps_ms" in df.columns else df.columns[5]
-    col_op  = "operadors" if "operadors" in df.columns else df.columns[1]
-
-    present = [o for o in order if o in df[col_op].unique()]
-    labels  = [short[o] for o in present]
-
-    stats = df.groupby(col_op).agg(
-        mean_fin=(col_fin, "mean"),
-        std_fin=(col_fin, "std"),
-        mean_ini=(col_ini, "mean"),
-        mean_t=(col_t, "mean"),
-        std_t=(col_t, "std"),
-    ).reindex(present)
-
-    stats["red_pct"] = (stats["mean_ini"] - stats["mean_fin"]) / stats["mean_ini"] * 100
-
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
-    fig.suptitle("Experiment 1 — Comparació d'operadors (HC)", fontweight="bold")
-
-    bar_with_err(axes[0], labels, stats["mean_fin"], stats["std_fin"],
-                 PALETTE, "h_final (mitjana ± std)", "Qualitat de solució",
-                 y_min=stats["mean_fin"].min() * 0.95)
-
-    axes[1].bar(np.arange(len(labels)), stats["red_pct"],
-                color=PALETTE[:len(labels)])
-    axes[1].set_xticks(np.arange(len(labels)))
-    axes[1].set_xticklabels(labels, rotation=25, ha="right", fontsize=9)
-    axes[1].set_ylabel("Reducció % sobre h_inicial")
-    axes[1].set_title("Reducció relativa")
-    axes[1].yaxis.set_major_formatter(mticker.PercentFormatter())
-
-    bar_with_err(axes[2], labels, stats["mean_t"], stats["std_t"],
-                 PALETTE, "Temps (ms)", "Temps d'execució")
-
-    fig.tight_layout()
+    for ax, col, ylabel, title, ymin_frac in [
+        (axes[0], "h_final",  "h_final",       "Qualitat de solució final",      0.93),
+        (axes[1], "red_pct",  "Reduccio (%)",   "Reduccio respecte h inicial",    None),
+        (axes[2], "temps_ms", "Temps (ms)",     "Temps d'execucio",               None),
+    ]:
+        data = {labels[i]: df[df["operadors"] == op][col].dropna().values
+                for i, op in enumerate(present)}
+        ymin = df[col].min() * ymin_frac if ymin_frac else None
+        boxplot_group(ax, data, colors, title=title, ylabel=ylabel,
+                      rotate_labels=30, ymin=ymin)
+    axes[1].yaxis.set_major_formatter(mticker.PercentFormatter(decimals=0))
     savefig(fig, "exp1_operadors.png")
 
 
 # ── Experiment 1.2 ────────────────────────────────────────────────────────────
 
 def plot_exp1_2(df):
-    """3 operadors × 2 centres × 3 helis."""
     print("  Exp 1.2: operadors per escenari")
+    ops_order = ["SwapGroups","SwapGroups+SwapOrder","SwapGroups+MoveGroup+SwapOrder"]
+    ops = [o for o in ops_order if o in df["operador"].unique()]
+    op_labels = [SHORT_OP.get(o, o) for o in ops]
+    op_colors = [COLORS["blue"], COLORS["orange"], COLORS["green"]][:len(ops)]
 
-    col_op  = "operador"
-    col_c   = "num_centres"
-    col_h   = "heli_per_centre"
-    col_fin = "h_fin"
-    col_t   = "temps_ms"
-
-    df["escenari"] = df[col_c].astype(str) + "c/" + df[col_h].astype(str) + "h"
+    df = df.copy()
+    df["escenari"] = df["num_centres"].astype(str) + "c / " + df["heli_per_centre"].astype(str) + "h"
     escenaris = sorted(df["escenari"].unique())
-    ops = sorted(df[col_op].unique())
-    n_ops = len(ops)
-    n_esc = len(escenaris)
-
-    stats = df.groupby([col_op, "escenari"])[col_fin].agg(["mean","std"]).reset_index()
-
-    x = np.arange(n_esc)
+    x = np.arange(len(escenaris))
     width = 0.25
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-    fig.suptitle("Experiment 1.2 — Operadors per escenari (HC)", fontweight="bold")
 
-    for ax, metric, ylabel, title in [
-        (axes[0], col_fin, "h_final (mitjana)", "Qualitat"),
-        (axes[1], col_t,   "Temps (ms)",        "Temps"),
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    fig.suptitle("Experiment 1.2 — Operadors per escenari (HC)")
+    fig.subplots_adjust(top=0.88, wspace=0.35)
+
+    for ax, col, ylabel, title in [
+        (axes[0], "h_fin",    "h_final (mitjana +/- std)", "Qualitat de solucio"),
+        (axes[1], "temps_ms", "Temps (ms)",                "Temps d'execucio"),
     ]:
         for i, op in enumerate(ops):
-            sub = df[df[col_op] == op].groupby("escenari")[metric].mean().reindex(escenaris)
-            ax.bar(x + i * width, sub.values, width=width,
-                   label=op, color=PALETTE[i], alpha=0.9)
-        ax.set_xticks(x + width)
-        ax.set_xticklabels(escenaris, rotation=20, ha="right", fontsize=9)
-        ax.set_ylabel(ylabel)
-        ax.set_title(title)
-        ax.legend(fontsize=8)
-
-    fig.tight_layout()
+            sub   = df[df["operador"] == op].groupby("escenari")[col]
+            means = sub.mean().reindex(escenaris).values
+            stds  = sub.std().reindex(escenaris).values
+            ax.bar(x + i * width, means, width=width, label=op_labels[i],
+                   color=op_colors[i], alpha=0.88, edgecolor="#333", linewidth=0.7)
+            ax.errorbar(x + i * width, means, yerr=stds,
+                        fmt="none", ecolor="#444", capsize=3, elinewidth=0.9)
+        ax.set_xticks(x + width * (len(ops) - 1) / 2)
+        ax.set_xticklabels(escenaris, rotation=15, ha="right", fontsize=9)
+        style_ax(ax, ylabel=ylabel, title=title)
+        ax.legend(frameon=False, fontsize=8)
     savefig(fig, "exp1_2_operadors.png")
 
 
 # ── Experiment 2 ──────────────────────────────────────────────────────────────
 
 def plot_exp2(df):
-    """3 estratègies inicials: h_inicial, h_final, temps."""
-    print("  Exp 2: inicialització")
+    print("  Exp 2: inicialitzacio")
+    order = ["Random","Greedy","GreedyPro"]
+    ests  = [e for e in order if e in df["estrategia"].unique()]
+    cols  = [COLORS["red"], COLORS["blue"], COLORS["green"]][:len(ests)]
 
-    col_est = "estrategia"
-    col_ini = "h_inicial"
-    col_fin = "h_final"
-    col_t   = "temps_ms"
+    fig, axes = plt.subplots(1, 3, figsize=(13, 5))
+    fig.suptitle("Experiment 2 — Estrategia d'inicialitzacio (Hill Climbing)")
+    fig.subplots_adjust(top=0.88, wspace=0.35, bottom=0.16)
 
-    ests   = df[col_est].unique()
-    stats  = df.groupby(col_est).agg(
-        mean_ini=(col_ini, "mean"), std_ini=(col_ini, "std"),
-        mean_fin=(col_fin, "mean"), std_fin=(col_fin, "std"),
-        mean_t=(col_t, "mean"),     std_t=(col_t, "std"),
-    ).reindex(ests)
+    for ax, col, ylabel, title, ymin_frac in [
+        (axes[0], "h_inicial", "h_inicial",  "Qualitat estat inicial", 0.90),
+        (axes[1], "h_final",   "h_final",    "Qualitat solucio final", 0.93),
+        (axes[2], "temps_ms",  "Temps (ms)", "Temps d'execucio (HC)",  None),
+    ]:
+        data = {e: df[df["estrategia"] == e][col].dropna().values for e in ests}
+        ymin = df[col].min() * ymin_frac if ymin_frac else None
+        boxplot_group(ax, data, cols, title=title, ylabel=ylabel, ymin=ymin)
 
-    fig, axes = plt.subplots(1, 3, figsize=(12, 4))
-    fig.suptitle("Experiment 2 — Estratègia d'inicialització (HC)", fontweight="bold")
+    if "Random" in ests and "GreedyPro" in ests:
+        r  = df[df["estrategia"] == "Random"]["h_final"].dropna().values
+        gp = df[df["estrategia"] == "GreedyPro"]["h_final"].dropna().values
+        add_significance(axes[1], ests.index("Random")+1, ests.index("GreedyPro")+1, r, gp)
 
-    bar_with_err(axes[0], ests, stats["mean_ini"], stats["std_ini"],
-                 PALETTE, "h_inicial", "Qualitat estat inicial")
-    bar_with_err(axes[1], ests, stats["mean_fin"], stats["std_fin"],
-                 PALETTE, "h_final", "Qualitat solució final")
-    bar_with_err(axes[2], ests, stats["mean_t"], stats["std_t"],
-                 PALETTE, "Temps (ms)", "Temps d'execució")
-
-    fig.tight_layout()
+    patches = [mpatches.Patch(facecolor=cols[i], edgecolor="#333", alpha=0.88, label=e)
+               for i, e in enumerate(ests)]
+    fig.legend(handles=patches, loc="lower center", ncol=len(ests),
+               frameon=False, fontsize=9, bbox_to_anchor=(0.5, 0.0))
     savefig(fig, "exp2_inicialitzacio.png")
 
 
 # ── Experiment 3 ──────────────────────────────────────────────────────────────
 
-def plot_exp3(df):
-    """SA: h_final per stiter (i opcionalment per k, lambda, steps)."""
-    print("  Exp 3: paràmetres SA")
+def plot_exp3(df1, df2, df3):
+    print("  Exp 3: parametres SA")
 
-    col_fin  = "h_final"
-    col_stit = "stiter" if "stiter" in df.columns else df.columns[2]
+    # 3.1 steps
+    if df1 is not None and not df1.empty:
+        steps_vals = sorted(df1["steps"].unique())
+        means = df1.groupby("steps")["h_final"].mean().reindex(steps_vals).values
+        stds  = df1.groupby("steps")["h_final"].std().reindex(steps_vals).values
+        fig, ax = plt.subplots(figsize=(9, 4.5))
+        fig.suptitle("Experiment 3.1 — SA: efecte del nombre de passos (steps)")
+        errorline(ax, steps_vals, means, stds, COLORS["blue"], "SA h_final")
+        style_ax(ax, xlabel="steps", ylabel="h_final (mitjana +/- std)",
+                 title="H final vs steps  [k=10, lambda=0.001, stiter=100]")
+        ax.set_xticks(steps_vals)
+        ax.set_xticklabels([f"{int(s/1000)}k" for s in steps_vals], fontsize=9)
+        savefig(fig, "exp3_1_steps.png")
 
-    vary_cols = []
-    for c in ["k", "lambda", "steps"]:
-        if c in df.columns and df[c].nunique() > 1:
-            vary_cols.append(c)
+    # 3.2 heatmap k x lambda
+    if df2 is not None and not df2.empty:
+        pivot = df2.groupby(["k","lam"])["h_final"].mean().unstack()
+        pivot.index   = [str(int(k)) for k in pivot.index]
+        pivot.columns = [f"{v:.4f}" for v in pivot.columns]
 
-    # Sempre plot stiter
-    fig, ax = plt.subplots(figsize=(8, 4))
-    stats = df.groupby(col_stit)[col_fin].agg(["mean","std"]).reset_index()
-    x = np.arange(len(stats))
-    ax.bar(x, stats["mean"], yerr=stats["std"], capsize=4,
-           color=PALETTE[0], error_kw={"elinewidth": 1})
-    ax.set_xticks(x)
-    ax.set_xticklabels(stats[col_stit].astype(str), rotation=20, ha="right")
-    ax.set_xlabel("stiter")
-    ax.set_ylabel("h_final (mitjana ± std)")
-    ax.set_title("Experiment 3 — SA: h_final per stiter")
-    fig.tight_layout()
-    savefig(fig, "exp3_SA_stiter.png")
+        fig, ax = plt.subplots(figsize=(9, 5.5))
+        fig.suptitle("Experiment 3.2 — SA: heatmap k x lambda (h_final mitjana)")
+        sns.heatmap(pivot, ax=ax, annot=True, fmt=".0f", cmap="YlOrRd_r",
+                    linewidths=0.5, linecolor="#DDD",
+                    cbar_kws={"label": "h_final (mitjana)", "shrink": 0.85},
+                    annot_kws={"fontsize": 9})
+        ax.set_xlabel("lambda", labelpad=6)
+        ax.set_ylabel("k", labelpad=6)
+        ax.tick_params(axis="both", length=0)
+        ax.set_title("H final per combinacio de k i lambda  [steps=150k, stiter=100]", pad=6)
+        fig.tight_layout(rect=[0, 0, 1, 0.93])
+        savefig(fig, "exp3_2_heatmap_k_lambda.png")
 
-    # Si hi ha més variables que varien, una figura per cadascuna
-    for vc in vary_cols:
-        fig, ax = plt.subplots(figsize=(8, 4))
-        stats_v = df.groupby(vc)[col_fin].agg(["mean","std"]).reset_index()
-        x = np.arange(len(stats_v))
-        ax.bar(x, stats_v["mean"], yerr=stats_v["std"], capsize=4,
-               color=PALETTE[1], error_kw={"elinewidth": 1})
-        ax.set_xticks(x)
-        ax.set_xticklabels(stats_v[vc].astype(str), rotation=20, ha="right")
-        ax.set_xlabel(vc)
-        ax.set_ylabel("h_final (mitjana ± std)")
-        ax.set_title(f"Experiment 3 — SA: h_final per {vc}")
-        fig.tight_layout()
-        savefig(fig, f"exp3_SA_{vc}.png")
+        # Linies k i lambda
+        lam_vals = sorted(df2["lam"].unique())
+        k_vals   = sorted(df2["k"].unique())
+        fig, axes = plt.subplots(1, 2, figsize=(13, 4.5))
+        fig.suptitle("Experiment 3.2 — SA: efecte de k i lambda")
+        fig.subplots_adjust(top=0.88, wspace=0.35)
 
-    # Heatmap k × lambda si hi ha variació
-    if "k" in vary_cols and "lambda" in vary_cols:
-        pivot = df.groupby(["k","lambda"])[col_fin].mean().unstack()
-        fig, ax = plt.subplots(figsize=(8, 4))
-        sns.heatmap(pivot, ax=ax, annot=True, fmt=".0f",
-                    cmap="YlOrRd_r", cbar_kws={"label":"h_final"})
-        ax.set_title("Experiment 3 — SA: heatmap k × λ")
-        fig.tight_layout()
-        savefig(fig, "exp3_SA_heatmap.png")
+        for lam, col in zip(lam_vals, sns.color_palette("viridis", len(lam_vals))):
+            sub = df2[df2["lam"] == lam].groupby("k")["h_final"]
+            errorline(axes[0], k_vals, sub.mean().reindex(k_vals).values,
+                      sub.std().reindex(k_vals).values, hex_from_rgb(col), f"lam={lam:.4f}")
+        style_ax(axes[0], xlabel="k", ylabel="h_final", title="H final vs k (per lambda)")
+        axes[0].set_xticks(k_vals); axes[0].legend(frameon=False, fontsize=7)
+
+        for k, col in zip(k_vals, sns.color_palette("plasma", len(k_vals))):
+            sub = df2[df2["k"] == k].groupby("lam")["h_final"]
+            errorline(axes[1], range(len(lam_vals)),
+                      sub.mean().reindex(lam_vals).values,
+                      sub.std().reindex(lam_vals).values, hex_from_rgb(col), f"k={k}")
+        axes[1].set_xticks(range(len(lam_vals)))
+        axes[1].set_xticklabels([f"{v:.4f}" for v in lam_vals], rotation=20, ha="right", fontsize=8)
+        style_ax(axes[1], xlabel="lambda", ylabel="h_final", title="H final vs lambda (per k)")
+        axes[1].legend(frameon=False, fontsize=7)
+        savefig(fig, "exp3_2_lines_k_lambda.png")
+
+    # 3.3 stiter boxplot
+    if df3 is not None and not df3.empty:
+        stiter_vals = sorted(df3["stiter"].unique())
+        labels_st   = [str(int(s)) for s in stiter_vals]
+        cols_st = [hex_from_rgb(c) for c in sns.color_palette("Blues_d", len(stiter_vals))]
+        data_st = {labels_st[i]: df3[df3["stiter"] == s]["h_final"].dropna().values
+                   for i, s in enumerate(stiter_vals)}
+        fig, ax = plt.subplots(figsize=(10, 4.5))
+        fig.suptitle("Experiment 3.3 — SA: efecte de stiter")
+        boxplot_group(ax, data_st, cols_st,
+                      title="H final per stiter  [k=10, lambda=0.001, steps=150k]",
+                      ylabel="h_final", xlabel="stiter (iteracions per temperatura)",
+                      ymin=df3["h_final"].min() * 0.93)
+        savefig(fig, "exp3_3_stiter.png")
 
 
 # ── Experiment 4 ──────────────────────────────────────────────────────────────
 
 def plot_exp4(df):
-    """HC vs SA escalabilitat proporcional."""
     print("  Exp 4: escalabilitat proporcional")
+    algs    = df["algoritme"].unique()
+    centres = sorted(df["n_centres"].unique())
+    alg_colors = {a: PALETTE[i] for i, a in enumerate(algs)}
 
-    col_alg = "algoritme"
-    col_nc  = "n_centres"
-    col_fin = "h_final"
-    col_t   = "temps_ms"
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+    fig.suptitle("Experiment 4 — Escalabilitat proporcional (HC vs SA)")
+    fig.subplots_adjust(top=0.88, wspace=0.35)
 
-    stats = df.groupby([col_alg, col_nc]).agg(
-        mean_fin=(col_fin, "mean"), std_fin=(col_fin, "std"),
-        mean_t=(col_t, "mean"),     std_t=(col_t, "std"),
-    ).reset_index()
-
-    algs   = stats[col_alg].unique()
-    centres = sorted(stats[col_nc].unique())
-
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
-    fig.suptitle("Experiment 4 — Escalabilitat proporcional (HC vs SA)", fontweight="bold")
-
-    for ax, metric, std_m, ylabel, title in [
-        (axes[0], "mean_fin", "std_fin", "h_final (mitjana ± std)", "Qualitat"),
-        (axes[1], "mean_t",   "std_t",   "Temps (ms)",               "Temps"),
+    for ax, col, ylabel, title in [
+        (axes[0], "h_final",  "h_final (mitjana +/- std)", "Qualitat de solucio"),
+        (axes[1], "temps_ms", "Temps (ms)",                "Temps d'execucio"),
     ]:
-        for i, alg in enumerate(algs):
-            sub = stats[stats[col_alg] == alg].set_index(col_nc).reindex(centres)
-            ax.errorbar(centres, sub[metric], yerr=sub[std_m],
-                        marker="o", label=alg, color=PALETTE[i], capsize=4)
-        ax.set_xlabel("Nombre de centres")
-        ax.set_ylabel(ylabel)
-        ax.set_title(title)
-        ax.legend()
-        ax.set_xticks(centres)
-
-    fig.tight_layout()
+        for alg in algs:
+            sub = df[df["algoritme"] == alg].groupby("n_centres")[col]
+            errorline(ax, centres, sub.mean().reindex(centres).values,
+                      sub.std().reindex(centres).values, alg_colors[alg], alg)
+        style_ax(ax, xlabel="Nombre de centres (grups proporcionals)", ylabel=ylabel, title=title)
+        ax.set_xticks(centres); ax.legend(frameon=False)
     savefig(fig, "exp4_escalabilitat_proporcional.png")
 
 
 # ── Experiment 5 ──────────────────────────────────────────────────────────────
 
 def plot_exp5(df):
-    """5a: varia grups. 5b: varia centres."""
     print("  Exp 5: escalabilitat separada")
+    fig, axes = plt.subplots(2, 2, figsize=(13, 9))
+    fig.suptitle("Experiment 5 — Escalabilitat separada (Hill Climbing)")
+    fig.subplots_adjust(top=0.93, hspace=0.45, wspace=0.35)
 
-    col_esc = "escenari"
-    col_fin = "h_final"
-    col_t   = "temps_ms"
-
-    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
-    fig.suptitle("Experiment 5 — Escalabilitat separada (HC)", fontweight="bold")
-
-    for row, esc_id in enumerate(["5a","5b"]):
-        sub = df[df[col_esc] == esc_id].copy()
-        if sub.empty:
-            continue
-
-        x_col = "n_grups" if esc_id == "5a" else "n_centres"
+    configs = [
+        ("grups",   "n_grups",   "Nombre de grups",   COLORS["blue"],   COLORS["teal"]),
+        ("centres", "n_centres", "Nombre de centres",  COLORS["purple"], COLORS["orange"]),
+    ]
+    for row, (esc_id, x_col, xlabel, c_qual, c_temps) in enumerate(configs):
+        sub = df[df["escenari"] == esc_id].copy()
+        if sub.empty: continue
         xs = sorted(sub[x_col].unique())
-        means_fin = sub.groupby(x_col)[col_fin].mean().reindex(xs)
-        stds_fin  = sub.groupby(x_col)[col_fin].std().reindex(xs)
-        means_t   = sub.groupby(x_col)[col_t].mean().reindex(xs)
-        stds_t    = sub.groupby(x_col)[col_t].std().reindex(xs)
-
-        xlabel = "Nombre de grups" if esc_id == "5a" else "Nombre de centres"
-
-        axes[row][0].errorbar(xs, means_fin, yerr=stds_fin,
-                              marker="o", color=PALETTE[row*2], capsize=4)
-        axes[row][0].set_xlabel(xlabel)
-        axes[row][0].set_ylabel("h_final (mitjana ± std)")
-        axes[row][0].set_title(f"{'5a' if row==0 else '5b'}: qualitat")
-        axes[row][0].set_xticks(xs)
-
-        axes[row][1].errorbar(xs, means_t, yerr=stds_t,
-                              marker="s", color=PALETTE[row*2+1], capsize=4)
-        axes[row][1].set_xlabel(xlabel)
-        axes[row][1].set_ylabel("Temps (ms)")
-        axes[row][1].set_title(f"{'5a' if row==0 else '5b'}: temps")
-        axes[row][1].set_xticks(xs)
-
-    fig.tight_layout()
+        for col_idx, (col, ylabel, title, color, marker) in enumerate([
+            ("h_final",  "h_final (mitjana +/- std)", f"5{'a' if row==0 else 'b'}: qualitat",        c_qual,  "o"),
+            ("temps_ms", "Temps (ms)",                 f"5{'a' if row==0 else 'b'}: temps d'execucio", c_temps, "s"),
+        ]):
+            means = sub.groupby(x_col)[col].mean().reindex(xs).values
+            stds  = sub.groupby(x_col)[col].std().reindex(xs).values
+            errorline(axes[row][col_idx], xs, means, stds, color, col, marker=marker)
+            style_ax(axes[row][col_idx], xlabel=xlabel, ylabel=ylabel, title=title)
+            axes[row][col_idx].set_xticks(xs)
     savefig(fig, "exp5_escalabilitat_separada.png")
 
 
 # ── Experiment 6 ──────────────────────────────────────────────────────────────
 
 def plot_exp6(df):
-    """Helicòpters per centre: h_final i temps."""
-    print("  Exp 6: helicòpters per centre")
+    print("  Exp 6: helicopters per centre")
+    helis  = sorted(df["n_helis"].unique())
+    labels = [str(h) for h in helis]
+    cols = [hex_from_rgb(c) for c in sns.color_palette("Greens_d", len(helis))]
 
-    col_nh  = "n_helis"
-    col_fin = "h_final"
-    col_t   = "temps_ms"
+    fig, axes = plt.subplots(1, 2, figsize=(11, 5))
+    fig.suptitle("Experiment 6 — Nombre d'helicopters per centre (HC)")
+    fig.subplots_adjust(top=0.88, wspace=0.35)
 
-    helis  = sorted(df[col_nh].unique())
-    means_f = df.groupby(col_nh)[col_fin].mean().reindex(helis)
-    stds_f  = df.groupby(col_nh)[col_fin].std().reindex(helis)
-    means_t = df.groupby(col_nh)[col_t].mean().reindex(helis)
-    stds_t  = df.groupby(col_nh)[col_t].std().reindex(helis)
-
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-    fig.suptitle("Experiment 6 — Helicòpters per centre (HC)", fontweight="bold")
-
-    axes[0].errorbar(helis, means_f, yerr=stds_f,
-                     marker="o", color=PALETTE[0], capsize=4)
-    axes[0].set_xlabel("Helicòpters per centre")
-    axes[0].set_ylabel("h_final (mitjana ± std)")
-    axes[0].set_title("Qualitat")
-    axes[0].set_xticks(helis)
-
-    axes[1].errorbar(helis, means_t, yerr=stds_t,
-                     marker="s", color=PALETTE[1], capsize=4)
-    axes[1].set_xlabel("Helicòpters per centre")
-    axes[1].set_ylabel("Temps (ms)")
-    axes[1].set_title("Temps d'execució")
-    axes[1].set_xticks(helis)
-
-    fig.tight_layout()
+    for ax, col, ylabel, title, ymin_frac in [
+        (axes[0], "h_final",  "h_final",    "Qualitat de solucio",  0.93),
+        (axes[1], "temps_ms", "Temps (ms)", "Temps d'execucio",     None),
+    ]:
+        data = {labels[i]: df[df["n_helis"] == h][col].dropna().values
+                for i, h in enumerate(helis)}
+        ymin = df[col].min() * ymin_frac if ymin_frac else None
+        boxplot_group(ax, data, cols, title=title, ylabel=ylabel,
+                      xlabel="Helicopters per centre", ymin=ymin)
     savefig(fig, "exp6_helicopters.png")
 
 
 # ── Experiment 7 ──────────────────────────────────────────────────────────────
 
 def plot_exp7(df):
-    """H1 + w*H2: h1_final i h2_final per w, HC vs SA."""
-    print("  Exp 7: heurística H2 i ponderació")
+    print("  Exp 7: heuristica H2 i ponderacio")
+    ws   = sorted(df["w"].unique())
+    algs = df["algoritme"].unique()
+    alg_colors = {a: PALETTE[i] for i, a in enumerate(algs)}
 
-    col_alg = "algoritme"
-    col_w   = "w"
-    col_h1  = "h1_final"
-    col_h2  = "h2_final"
-    col_t   = "temps_ms"
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig.suptitle("Experiment 7 — Heuristica combinada H1 + w*H2 (HC vs SA)")
+    fig.subplots_adjust(top=0.88, wspace=0.38)
 
-    ws   = sorted(df[col_w].unique())
-    algs = df[col_alg].unique()
-
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
-    fig.suptitle("Experiment 7 — Heurística combinada H1 + w·H2 (HC vs SA)", fontweight="bold")
-
-    for metric, ax, ylabel, title in [
-        (col_h1, axes[0], "h1_final (temps total)", "H1 final (qualitat temps)"),
-        (col_h2, axes[1], "h2_final (prioritat)",   "H2 final (qualitat prioritat)"),
-        (col_t,  axes[2], "Temps (ms)",              "Temps d'execució"),
+    for ax, col, ylabel, title in [
+        (axes[0], "h1_final",  "h1_final (temps total)", "H1 final — qualitat de temps"),
+        (axes[1], "h2_final",  "h2_final (prioritat)",   "H2 final — qualitat de prioritat"),
+        (axes[2], "temps_ms",  "Temps (ms)",              "Temps d'execucio"),
     ]:
-        for i, alg in enumerate(algs):
-            sub = df[df[col_alg] == alg].groupby(col_w)[metric].mean().reindex(ws)
-            axes[axes.tolist().index(ax)].plot(ws, sub.values, marker="o",
-                                                label=alg, color=PALETTE[i])
-        ax.set_xlabel("w (pes de H2)")
-        ax.set_ylabel(ylabel)
-        ax.set_title(title)
-        ax.set_xticks(ws)
-        ax.legend()
-
-    fig.tight_layout()
+        for alg in algs:
+            sub = df[df["algoritme"] == alg].groupby("w")[col]
+            errorline(ax, ws, sub.mean().reindex(ws).values,
+                      sub.std().reindex(ws).values, alg_colors[alg], alg)
+        style_ax(ax, xlabel="w (pes de H2)", ylabel=ylabel, title=title)
+        ax.set_xticks(ws); ax.legend(frameon=False)
     savefig(fig, "exp7_heuristica2.png")
 
-    # Scatter H1 vs H2 per w i algorisme
-    fig, axes = plt.subplots(1, len(algs), figsize=(6 * len(algs), 5), squeeze=False)
+    # Scatter H1 vs H2
+    n_algs = len(algs)
+    fig, axes = plt.subplots(1, n_algs, figsize=(7*n_algs, 5), squeeze=False)
+    fig.suptitle("Experiment 7 — Trade-off H1 / H2 per valor de w")
+    fig.subplots_adjust(top=0.88)
     for i, alg in enumerate(algs):
-        sub = df[df[col_alg] == alg]
-        sc = axes[0][i].scatter(sub[col_h1], sub[col_h2],
-                                c=sub[col_w], cmap="plasma", alpha=0.6, s=20)
-        fig.colorbar(sc, ax=axes[0][i], label="w")
-        axes[0][i].set_xlabel("h1_final")
-        axes[0][i].set_ylabel("h2_final")
-        axes[0][i].set_title(f"{alg}: trade-off H1 vs H2")
-    fig.suptitle("Experiment 7 — Trade-off H1/H2 per valor de w", fontweight="bold")
-    fig.tight_layout()
+        sub = df[df["algoritme"] == alg]
+        sc = axes[0][i].scatter(sub["h1_final"], sub["h2_final"],
+                                c=sub["w"], cmap="plasma",
+                                vmin=min(ws), vmax=max(ws),
+                                alpha=0.65, s=22, linewidths=0.3, edgecolors="#333")
+        cb = fig.colorbar(sc, ax=axes[0][i], shrink=0.85, pad=0.02)
+        cb.set_label("w", fontsize=9); cb.ax.tick_params(labelsize=8)
+        style_ax(axes[0][i], xlabel="h1_final", ylabel="h2_final",
+                 title=f"{alg}: trade-off H1 vs H2")
+    fig.tight_layout(rect=[0, 0, 1, 0.93])
     savefig(fig, "exp7_scatter_h1_h2.png")
 
 
 # ── Dispatcher ────────────────────────────────────────────────────────────────
 
-EXPERIMENTS = {
-    1:  ("exp1_operadors.csv",                plot_exp1),
-    12: ("exp1_2_operadors.csv",              plot_exp1_2),
-    2:  ("exp2_inicial.csv",                  plot_exp2),
-    3:  ("exp3_3_SA_params.csv",              plot_exp3),
-    4:  ("exp4_escalabilitat_proporcional.csv", plot_exp4),
-    5:  ("exp5_escalabilitat_separada.csv",   plot_exp5),
-    6:  ("exp6_helicopters.csv",              plot_exp6),
-    7:  ("exp7_heuristica2.csv",              plot_exp7),
-}
-
 def run(exp_id):
-    if exp_id not in EXPERIMENTS:
-        print(f"Experiment {exp_id} no reconegut. Opcions: {list(EXPERIMENTS)}")
-        return
-    filename, func = EXPERIMENTS[exp_id]
-    df = read_csv(filename)
-    if df is None:
-        return
-    func(df)
+    if exp_id == 1:
+        df = read_exp1("exp1_operadors.csv")
+        if df is not None: plot_exp1(df)
+    elif exp_id == 12:
+        df = read_exp1_2("exp1_2_operadors.csv")
+        if df is not None: plot_exp1_2(df)
+    elif exp_id == 2:
+        df = read_exp2("exp2_inicial.csv")
+        if df is not None: plot_exp2(df)
+    elif exp_id == 3:
+        df1 = read_exp3_1("exp3_1_SA_params.csv")
+        df2 = read_exp3_2("exp3_2_SA_params.csv")
+        df3 = read_exp3_3("exp3_3_SA_params.csv")
+        plot_exp3(df1, df2, df3)
+    elif exp_id == 4:
+        df = read_exp4("exp4_escalabilitat_proporcional.csv")
+        if df is not None: plot_exp4(df)
+    elif exp_id == 5:
+        df = read_exp5("exp5_escalabilitat_separada.csv")
+        if df is not None: plot_exp5(df)
+    elif exp_id == 6:
+        df = read_exp6("exp6_helicopters.csv")
+        if df is not None: plot_exp6(df)
+    elif exp_id == 7:
+        df = read_exp7("exp7_heuristica2.csv")
+        if df is not None: plot_exp7(df)
+    else:
+        print(f"Experiment {exp_id} no reconegut.")
 
+
+ALL_IDS = [1, 12, 2, 3, 4, 5, 6, 7]
 
 if __name__ == "__main__":
-    requested = [int(x) for x in sys.argv[1:]] if len(sys.argv) > 1 else list(EXPERIMENTS)
-    print(f"Generant gràfics per experiments: {requested}")
-    print(f"CSVs: '{CSV_DIR}'  →  PNGs: '{OUTPUT_DIR}/'")
+    requested = [int(x) for x in sys.argv[1:]] if len(sys.argv) > 1 else ALL_IDS
+    print(f"Generant grafics per experiments: {requested}")
+    print(f"CSVs: '{CSV_DIR}'  ->  PNGs: '{OUTPUT_DIR}/'")
     for exp_id in requested:
         run(exp_id)
     print("Fet.")
