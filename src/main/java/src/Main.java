@@ -61,8 +61,11 @@ public class Main {
             default -> {
                 System.out.println("Indica l'experiment: java src.Main <1-7>");
                 System.out.println("  1 → Operadors");
+                System.out.println("  12 → Operadors millors");
                 System.out.println("  2 → Solució inicial");
-                System.out.println("  3 → Paràmetres SA");
+                System.out.println("  31 → Paràmetres SA steps");
+                System.out.println("  32 → Paràmetres SA k lamda");
+                System.out.println("  33 → Paràmetres SA stiter");
                 System.out.println("  4 → Escalabilitat proporcional (HC + SA)");
                 System.out.println("  5 → Escalabilitat separada (HC)");
                 System.out.println("  6 → Helicòpters per centre");
