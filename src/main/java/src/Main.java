@@ -61,6 +61,7 @@ public class Main {
             case 7  -> experiment7_heuristica2();
             default -> {
                 System.out.println("Indica l'experiment: java src.Main <1-7>");
+                System.out.println("  0 → Executar tots els experiments");
                 System.out.println("  1 → Operadors");
                 System.out.println("  12 → Operadors millors");
                 System.out.println("  2 → Solució inicial");
