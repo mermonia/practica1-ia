@@ -193,7 +193,7 @@ public class Main {
                 }
                 double hIni = new HeuristicTotalTime().getHeuristicValue(ini);
 
-                double[] res = runHC(ini, new SwapGroupsSwapOrderSuccessorFunction(), new HeuristicTotalTime());
+                double[] res = runHC(ini, new DesastresSuccessorFunction(), new HeuristicTotalTime());
                 csv += String.format("2,%s,%d,%.4f,%.4f,%.0f,%.0f\n",
                         est, seed, hIni, res[0], res[1], res[2]);
                 System.out.printf("  [%s] seed=%d  Hini=%.2f  Hfin=%.2f  t=%dms\n",
@@ -263,7 +263,7 @@ public class Main {
 
                 // HC
                 RescueState iniHC = generaInicial("GreedyPro", g, c);
-                double[] hc = runHC(iniHC, new SwapGroupsSwapOrderSuccessorFunction(), new HeuristicTotalTime());
+                double[] hc = runHC(iniHC, new DesastresSuccessorFunction(), new HeuristicTotalTime());
                 csv += String.format("4,HC,%d,%d,%d,%.4f,%.0f\n", nc, ng, seed, hc[0], hc[1]);
                 System.out.printf("  HC  nc=%d ng=%d seed=%d → H=%.2f t=%dms\n",
                         nc, ng, seed, hc[0], (long)hc[1]);
@@ -297,7 +297,7 @@ public class Main {
                 Grupos  g = new Grupos(ng, seed);
                 Centros c = new Centros(5, 1, seed);
                 RescueState ini = generaInicial("GreedyPro", g, c);
-                double[] res = runHC(ini, new SwapGroupsSwapOrderSuccessorFunction(), new HeuristicTotalTime());
+                double[] res = runHC(ini, new DesastresSuccessorFunction(), new HeuristicTotalTime());
                 csv += String.format(java.util.Locale.US, "5a,grups,5,%d,%d,%.4f,%.0f\n", ng, seed, res[0], res[1]);
                 System.out.printf("  5a ng=%d seed=%d → H=%.2f t=%dms\n", ng, seed, res[0], (long)res[1]);
             }
@@ -310,7 +310,7 @@ public class Main {
                 Grupos  g = new Grupos(100, seed);
                 Centros c = new Centros(nc, 1, seed);
                 RescueState ini = generaInicial("GreedyPro", g, c);
-                double[] res = runHC(ini, new SwapGroupsSwapOrderSuccessorFunction(), new HeuristicTotalTime());
+                double[] res = runHC(ini, new DesastresSuccessorFunction(), new HeuristicTotalTime());
                 csv += String.format(java.util.Locale.US,"5b,centres,%d,100,%d,%.4f,%.0f\n", nc, seed, res[0], res[1]);
                 System.out.printf("  5b nc=%d seed=%d → H=%.2f t=%dms\n", nc, seed, res[0], (long)res[1]);
             }
@@ -333,7 +333,7 @@ public class Main {
                 Grupos  g = new Grupos(100, seed);
                 Centros c = new Centros(5, nh, seed);
                 RescueState ini = generaInicial("GreedyPro", g, c);
-                double[] res = runHC(ini, new SwapGroupsSwapOrderSuccessorFunction(), new HeuristicTotalTime());
+                double[] res = runHC(ini, new DesastresSuccessorFunction(), new HeuristicTotalTime());
                 csv += String.format(java.util.Locale.US,"6,%d,%d,%.4f,%.0f\n", nh, seed, res[0], res[1]);
                 System.out.printf("  helis=%d seed=%d → H=%.2f t=%dms\n", nh, seed, res[0], (long)res[1]);
             }
@@ -361,7 +361,7 @@ public class Main {
 
                 // ---- HC ----
                 RescueState iniHC = generaInicial("GreedyPro", g, c);
-                double[] hc = runHC(iniHC, new SwapGroupsSwapOrderSuccessorFunction(), hComb);
+                double[] hc = runHC(iniHC, new DesastresSuccessorFunction(), hComb);
                 double h1hc = new HeuristicTotalTime().getHeuristicValue(lastState);
                 double h2hc = new HeuristicPriority().getHeuristicValue(lastState);
                 csv += String.format(java.util.Locale.US,"7,HC,%.0f,%d,%.4f,%.4f,%.4f,%.0f\n",
