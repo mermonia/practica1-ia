@@ -51,7 +51,9 @@ public class Main {
             case 1  -> experiment1_operadors();
             case 12 -> experiment1_2_operadors();
             case 2  -> experiment2_inicialitzacio();
-            case 3  -> experiment3_SA_params();
+            case 31  -> experiment3_1_SA_params();
+            case 32  -> experiment3_2_SA_params();
+            case 33  -> experiment3_3_SA_params();
             case 4  -> experiment4_escalabilitat_proporcional();
             case 5  -> experiment5_escalabilitat_separada();
             case 6  -> experiment6_helicopters();
@@ -207,7 +209,93 @@ public class Main {
     // EXPERIMENT 3 — Ajust paràmetres Simulated Annealing
     // Graella: k × lambda × steps | Escenari base | H1
     // ================================================================
-    static void experiment3_SA_params() throws Exception {
+    static void experiment3_1_SA_params() throws Exception {
+        System.out.println("=== EXPERIMENT 3: Paràmetres SA ===");
+        String csv = "exp,k,lambda,steps,stiter,seed,h_inicial,h_final,temps_ms\n";
+
+        //int[] ks = {10,30,50,70,90,100,500,1000};
+        int[] ks = {10};
+        //double[] lambdas = {0.01, 0.001,0.0008,0.0005, 0.0001};
+        double[] lambdas = {0.001};
+        int[]    stepArr = {5000,10000, 20000,50000,75000, 100000,150000,200000};
+        //int[]    stepArr = {150000};
+        int[] stiter = {100};
+        //int[]      stiter  = {10,100,500,1000,5000,10000,50000};
+
+        for (int k : ks) {
+            for (double lam : lambdas) {
+                for (int st : stepArr) {
+                    for (int stit : stiter) {
+                        // 5 rèpliques per la graella (amplia a 10 per als millors valors)
+                        for (int i = 0; i < 100; i++) {
+                            int seed = SEEDS2[i];
+                            Grupos g = new Grupos(100, seed);
+                            Centros c = new Centros(5, 1, seed);
+                            RescueState ini = generaInicial("GreedyPro", g, c);
+                            double hIni = new HeuristicTotalTime().getHeuristicValue(ini);
+
+                            double[] res = runSA(ini, new DesastresSuccessorFunctionSA(),
+                                    new HeuristicTotalTime(), st, stit, k, lam);
+                            csv += String.format("3,%d,%.6f,%d,%d,%d,%.0f,%.0f,%.0f\n",
+                                    k, lam, st, stit, seed, hIni, res[0], res[1]);
+                            System.out.printf("  k=%d λ=%.5f  steps=%d stiter=%d seed=%d Hini=%.0f H=%.0f t=%dms\n",
+                                    k, lam, st, stit, seed, hIni, res[0], (long) res[1]);
+                        }
+                    }
+                }
+            }
+        }
+        saveCSV("exp3_1_SA_params.csv", csv);
+    }
+
+    // ================================================================
+    // EXPERIMENT 3 — Ajust paràmetres Simulated Annealing
+    // Graella: k × lambda × steps | Escenari base | H1
+    // ================================================================
+    static void experiment3_2_SA_params() throws Exception {
+        System.out.println("=== EXPERIMENT 3: Paràmetres SA ===");
+        String csv = "exp,k,lambda,steps,stiter,seed,h_inicial,h_final,temps_ms\n";
+
+        int[] ks = {10,30,50,70,90,100,500,1000};
+        //int[] ks = {10};
+        double[] lambdas = {0.01, 0.001,0.0008,0.0005, 0.0001};
+        //double[] lambdas = {0.001};
+        //int[]    stepArr = {5000,10000, 20000,50000,75000, 100000,150000,200000};
+        int[]    stepArr = {150000};
+        int[] stiter = {100};
+        //int[]      stiter  = {10,100,500,1000,5000,10000,50000};
+
+        for (int k : ks) {
+            for (double lam : lambdas) {
+                for (int st : stepArr) {
+                    for (int stit : stiter) {
+                        // 5 rèpliques per la graella (amplia a 10 per als millors valors)
+                        for (int i = 0; i < 100; i++) {
+                            int seed = SEEDS2[i];
+                            Grupos g = new Grupos(100, seed);
+                            Centros c = new Centros(5, 1, seed);
+                            RescueState ini = generaInicial("GreedyPro", g, c);
+                            double hIni = new HeuristicTotalTime().getHeuristicValue(ini);
+
+                            double[] res = runSA(ini, new DesastresSuccessorFunctionSA(),
+                                    new HeuristicTotalTime(), st, stit, k, lam);
+                            csv += String.format("3,%d,%.6f,%d,%d,%d,%.0f,%.0f,%.0f\n",
+                                    k, lam, st, stit, seed, hIni, res[0], res[1]);
+                            System.out.printf("  k=%d λ=%.5f  steps=%d stiter=%d seed=%d Hini=%.0f H=%.0f t=%dms\n",
+                                    k, lam, st, stit, seed, hIni, res[0], (long) res[1]);
+                        }
+                    }
+                }
+            }
+        }
+        saveCSV("exp3_2_SA_params.csv", csv);
+    }
+
+    // ================================================================
+    // EXPERIMENT 3 — Ajust paràmetres Simulated Annealing
+    // Graella: k × lambda × steps | Escenari base | H1
+    // ================================================================
+    static void experiment3_3_SA_params() throws Exception {
         System.out.println("=== EXPERIMENT 3: Paràmetres SA ===");
         String csv = "exp,k,lambda,steps,stiter,seed,h_inicial,h_final,temps_ms\n";
 
