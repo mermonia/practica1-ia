@@ -48,6 +48,7 @@ public class Main {
     public static void main(String[] args) throws Exception {
         int exp = args.length > 0 ? Integer.parseInt(args[0]) : 0;
         switch (exp) {
+            case 0  -> all_experiments();
             case 1  -> experiment1_operadors();
             case 12 -> experiment1_2_operadors();
             case 2  -> experiment2_inicialitzacio();
@@ -74,13 +75,26 @@ public class Main {
         }
     }
 
+    static void all_experiments() throws Exception {
+        experiment1_operadors();
+        experiment1_2_operadors();
+        experiment2_inicialitzacio();
+        experiment3_1_SA_params();
+        experiment3_2_SA_params();
+        experiment3_3_SA_params();
+        experiment4_escalabilitat_proporcional();
+        experiment5_escalabilitat_separada();
+        experiment6_helicopters();
+        experiment7_heuristica2();
+    }
+
     // ================================================================
     // EXPERIMENT 1.2 — Quins operadors donen millors resultats?
     // Escenari: [5,10] centres, [1,2,3] heli/centre, 100 grups | HC | H1
     // Compara les 7 combinacions possibles d'operadors
     // ================================================================
     static void experiment1_2_operadors() throws Exception {
-        System.out.println("=== EXPERIMENT 1: Operadors ===");
+        System.out.println("=== EXPERIMENT 1_2: Operadors ===");
 
         // CSV amb tots els camps necessaris
         String csv = "exp,operador,num_centres,heli_per_centre,seed,h_ini,h_fin,temps_ms,nodes\n";
@@ -213,7 +227,7 @@ public class Main {
     // Graella: k × lambda × steps | Escenari base | H1
     // ================================================================
     static void experiment3_1_SA_params() throws Exception {
-        System.out.println("=== EXPERIMENT 3: Paràmetres SA ===");
+        System.out.println("=== EXPERIMENT 3_1: Paràmetres SA ===");
         String csv = "exp,k,lambda,steps,stiter,seed,h_inicial,h_final,temps_ms\n";
 
         //int[] ks = {10,30,50,70,90,100,500,1000};
@@ -256,7 +270,7 @@ public class Main {
     // Graella: k × lambda × steps | Escenari base | H1
     // ================================================================
     static void experiment3_2_SA_params() throws Exception {
-        System.out.println("=== EXPERIMENT 3: Paràmetres SA ===");
+        System.out.println("=== EXPERIMENT 3_2: Paràmetres SA ===");
         String csv = "exp,k,lambda,steps,stiter,seed,h_inicial,h_final,temps_ms\n";
 
         int[] ks = {10,30,50,70,90,100,500,1000};
@@ -299,7 +313,7 @@ public class Main {
     // Graella: k × lambda × steps | Escenari base | H1
     // ================================================================
     static void experiment3_3_SA_params() throws Exception {
-        System.out.println("=== EXPERIMENT 3: Paràmetres SA ===");
+        System.out.println("=== EXPERIMENT 3_3: Paràmetres SA ===");
         String csv = "exp,k,lambda,steps,stiter,seed,h_inicial,h_final,temps_ms\n";
 
         //int[] ks = {10,30,50,70,90,100,500,1000};
