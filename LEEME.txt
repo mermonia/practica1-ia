@@ -1,0 +1,38 @@
+============================================================
+  PRÀCTICA 1 - Intel·ligència Artificial
+  Eloi Mas & Guillem Revuelta - Grup 11
+============================================================
+
+INSTRUCCIONS PER EXECUTAR EL PROGRAMA
+--------------------------------------
+
+1. Compilar el projecte:
+     ./gradlew build
+
+2. Executar el programa:
+     ./gradlew run --args="<arg>"
+
+   Arguments disponibles:
+     0   → Executar tots els experiments
+     1   → Operadors
+     12  → Operadors millors
+     2   → Solució inicial
+     31  → Paràmetres SA (steps)
+     32  → Paràmetres SA (k, lambda)
+     33  → Paràmetres SA (stiter)
+     4   → Escalabilitat proporcional (HC + SA)
+     5   → Escalabilitat separada (HC)
+     6   → Helicòpters per centre
+     7   → Heurística H2 i ponderació
+
+RESULTATS
+----------
+Cada experiment genera un fitxer CSV amb els resultats.
+Per visualitzar-los gràficament, executar el script adjunt:
+
+     python3 plot_experiments.py
+
+Les dependències necessàries i instruccions detallades es
+troben documentades dins del propi script.
+
+============================================================
